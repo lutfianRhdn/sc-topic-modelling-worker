@@ -1,4 +1,6 @@
+from datetime import datetime
 from multiprocessing.connection import Connection
+import traceback
 
 from pymongo import MongoClient
 import asyncio
@@ -16,15 +18,18 @@ class DatabaseInteractionWorker(Worker):
   _isBusy: bool = False
   _client: MongoClient 
   _db: str 
+  _dbTweet:str
   def __init__(self, conn: Connection, config: dict):
     self.conn=conn
     self._db = config.get("database", "mydatabase") 
+    self._dbTweet = config.get("tweet_database", "tweets")
     self.connection_string = config.get("connection_string", "mongodb://localhost:27017/") 
 
   def run(self) -> None:
     self._instanceId = "DatabaseInteractionWorker"
     self._client = MongoClient(self.connection_string)
     self._db= self._client[self._db]
+    self._dbTweet = self._client[self._dbTweet]
     if not self._client:
       log("Failed to connect to MongoDB", "error")
     log(f"Connected to MongoDB at {self.connection_string}", "success")
@@ -53,8 +58,7 @@ class DatabaseInteractionWorker(Worker):
               method = destSplited[1]
               param= destSplited[2]
               instance_method = getattr(self,method)
-              result = instance_method(param)
-              print(f"Received message: {result}")
+              result = instance_method(id=param,data=message.get("data", None))
               sendMessage(
                   conn=self.conn, 
                   status="completed",
@@ -82,17 +86,100 @@ class DatabaseInteractionWorker(Worker):
       self._isBusy= False
       return {"data":data,"destination":["RestApiWorker/onProcessed"]}
       
+  def getTweetByIdStr(self,id,data):
+    ids = data.get('id_str', [])
+    # tweet = db2.tweets.find(
+    #     {"id_str": {"$in": id_str_list, "$ne": None}},
+    #     {"_id":0, "full_text": 1, "id_str": 1, "user_id_str": 1, "username" : 1, "conversation_id_str": 1, "tweet_url" : 1, "in_reply_to_screen_name" :1}
+    # )
+    # return tweet
+  def getTopicByProjectId(self,projectId):
+    topicProject =  self._db['topics'].find_one(
+        {"projectId": projectId},
+        {"_id": 0}
+    )
+    return {"data": topicProject, "destination": ["RestApiWorker/onProcessed"]}
+  def getTweetByKeyword(self,id,data):
+    keyword = data['keyword']
+    start_date = data['start_date']
+    end_date = data['end_date']
+    match_stage = {
+            '$match': {
+                'full_text': {'$regex': keyword.replace(' ','|'), '$options': 'i'}
+            }
+        }
+        
+    pipeline = [match_stage]
+
+    # Add date filtering if both start_date and end_date are provided
+    if start_date and end_date:
+        start_datetime = datetime.strptime(f"{start_date} 00:00:00 +0000", "%Y-%m-%d %H:%M:%S %z")
+        end_datetime = datetime.strptime(f"{end_date} 23:59:59 +0000", "%Y-%m-%d %H:%M:%S %z")
+        print(f"Filtering tweets from {start_datetime} to {end_datetime}")
+        
+        add_fields_stage = {
+            '$addFields': {
+                'parsed_date': {'$toDate': '$created_at'}
+            }
+        }
+        match_date_stage = {
+            '$match': {
+                'parsed_date': {
+                    '$gte': start_datetime,
+                    '$lte': end_datetime
+                }
+            }
+        }
+
+        pipeline.extend([add_fields_stage, match_date_stage])
     
-  
+    # Project stage to include only specific fields
+    project_stage = {
+        '$project': {
+            '_id' : 0,
+            'full_text': 1,
+            'username': 1,
+            'in_reply_to_screen_name': 1,
+            'tweet_url': 1
+        }
+    }
+    pipeline.append(project_stage)
+    
+    # Execute the aggregation pipeline
+    cursor = self._dbTweet['tweets'].aggregate(pipeline)
+    return {
+        "data": {
+          "tweets":list(cursor),
+          "keyword": keyword,
+          },
+        "destination": [f"PreprocessingWorker/run_preprocessing/{id}"]
+    }
+  # def getTextTweetsByKeyword(self, id, data):
+     
 ############### Helper function to convert ObjectId to string in a list of documents
   
-  
 def convertObjectIdToStr(data: list) -> list:
-   res =[]
-   for doc in data:
-      doc["_id"] = str(doc["_id"])
-      res.append(doc)
-   return res
+  import traceback
+  try:
+      res = []
+      print(f"Converting ObjectId to string for {len(data)} documents")
+      if type(data) is not list:
+        print("Data is not a list, returning it as is.")
+        return data 
+      for doc in data:
+          # print(f"Converting document: {doc}")
+
+          if isinstance(doc, dict):
+              doc["_id"] = str(doc["_id"]) if "_id" in doc else ""
+              res.append(doc)
+          else:
+              print(f"Skipping non-dict item: {doc}")
+      return res
+  except Exception as e:
+      traceback.print_exc()
+      print(f"Error converting ObjectId to string: {e}")
+      return []
+
 # This is the main function that the supervisor calls
 
 

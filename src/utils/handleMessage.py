@@ -1,9 +1,9 @@
-import multiprocessing
+from multiprocessing.connection import Connection
 from .log import log
 from typing import Any, Literal
 import json
 def sendMessage(
-  conn:multiprocessing.connection.PipeConnection,
+  conn:Connection,
   messageId:str,
   status:Literal["completed", "failed", "healthy", "unhealthy"],
   reason:str = "",

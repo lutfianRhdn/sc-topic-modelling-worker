@@ -7,6 +7,8 @@ import importlib
 import multiprocessing
 from datetime import datetime
 from multiprocessing.connection import Connection
+import traceback
+from config.workerConfig import DatabaseInteractionWorkerConfig, ETMWorkerConfig, LLMWorkerConfig, PreprocessingWorkerConfig, RabbitMQWorkerConfig, RestApiWorkerConfig
 from utils.log import log
 from utils.handleMessage import sendMessage,convertMessage
 
@@ -25,19 +27,22 @@ class Supervisor:
         # just edit this part to add your workers
         ####
         
-        self.create_worker("DatabaseInteractionWorker", count=1, config={
-          'connection_string': 'mongodb://localhost:27017/',
-          'database': 'mydatabase'
-        })
+        self.create_worker("DatabaseInteractionWorker", count=1, config=DatabaseInteractionWorkerConfig)
+        self.create_worker("RestApiWorker", count=1, config=RestApiWorkerConfig)
+        self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
+        self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)
+        self.create_worker('LLMWorker',count=1, config=LLMWorkerConfig)
+        #run funtion after 5 sconds
+        # self.create_worker("RabbitMQWorker", count=1, config=RabbitMQWorkerConfig)
         
-        self.create_worker("RestApiWorker", count=1, config={
-          'port':8000
-        })
+        # self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
+        # self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)
         
-        self.create_worker("TemplateWorker", count=1, config={
-          # Add any configuration needed for your worker here
-          'example_config': 'value'
-        })
+        
+        # self.create_worker("TemplateWorker", count=1, config={
+        #   # Add any configuration needed for your worker here
+        #   'example_config': 'value'
+        # })
         
         ####
         # until this part
@@ -77,8 +82,11 @@ class Supervisor:
             module = importlib.import_module(f"workers.{worker_name}")
             module.main(conn, config)
         except ModuleNotFoundError as e:
+            print(e)
             log(f"Worker module not found: workers.{worker_name}", "error")
         except Exception as e:
+            traceback.print_exc()
+            print(e)
             log(f"Worker error: {e}", "error")
         finally:
             conn.close()
