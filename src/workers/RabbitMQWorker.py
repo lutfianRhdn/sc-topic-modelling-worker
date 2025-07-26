@@ -1,3 +1,5 @@
+import asyncio
+import json
 from multiprocessing.connection import Connection
 import threading
 import uuid
@@ -8,6 +10,8 @@ import traceback
 import pika 
 
 from .Worker import Worker
+import threading
+
 
 class RabbitMQWorker(Worker):
     ###############
@@ -22,16 +26,17 @@ class RabbitMQWorker(Worker):
     consumeQueue:str
     consumeChannel:pika.adapters.blocking_connection.BlockingChannel
     consumeCompensationQueue:str
+    consumeComensationChannel:pika.adapters.blocking_connection.BlockingChannel
     
     produceQueue:str
     produceChannel:pika.adapters.blocking_connection.BlockingChannel
+    produceCompensationChannel:pika.adapters.blocking_connection.BlockingChannel
     produceCompensationQueue:str
     def __init__(self):
         # we'll assign these in run()
         self._port: int = None
 
         self.requests: dict = {}
-        
     def run(self, conn: Connection, config:dict):
         # assign here
         RabbitMQWorker.conn = conn
@@ -42,23 +47,29 @@ class RabbitMQWorker(Worker):
           self.consumeCompensationQueue = config.get("consumeCompensationQueue", "consume_compensation_queue")
           self.produceQueue = config.get("produceQueue", "produce_queue")
           self.produceCompensationQueue = config.get("produceCompensationQueue", "produce_compensation_queue")
+          self.topicExchange = config.get("topicExchange", "topic_exchange")
+          self.connection_string = config.get("connection_string", "amqp://guest:guest@localhost:5672/%2F")
           
           # Initialize RabbitMQ connection
           parameters = pika.URLParameters(config['connection_string'])
           self.connection = pika.BlockingConnection(parameters)
           self.consumeChannel = self.connection.channel()
-          self.produceChannel = self.connection.channel()
+          self.consumeComensationChannel = self.connection.channel()
           
           # Declare queues
           
           self.consumeChannel.queue_declare(queue=self.consumeQueue, durable=True)
-          self.consumeChannel.queue_declare(queue=self.consumeCompensationQueue, durable=True)
-          self.produceChannel.queue_declare(queue=self.produceQueue, durable=True)
-          self.produceChannel.queue_declare(queue=self.produceCompensationQueue, durable=True)
-          
-          
-          self.consumeMessage()
+          self.consumeComensationChannel.queue_declare(queue=self.consumeCompensationQueue, durable=True)
             
+            
+          t1 = threading.Thread(target=self.consumeMessage, args=(self.consumeQueue, ["PreprocessingWorker/prepare_preprocessing/"])).start()
+          t2 = threading.Thread(target=self.consumeMessage, args=(self.consumeCompensationQueue, ["DatabaseInteractionWorker/removeContext/", "DatabaseInteractionWorker/removeDocument"])).start()
+        
+        #   t4 = threading.Thread(target=self.health_check, daemon=True).start()
+        #   t1.join()
+        #   t2.join()
+        #   t3.join()
+        #   t4.join()
         except Exception as e:
           traceback.print_exc()
 
@@ -68,23 +79,31 @@ class RabbitMQWorker(Worker):
           return
         #### until this part
         # start background threads *before* blocking server
-        threading.Thread(target=self.listen_task, daemon=True).start()
-        threading.Thread(target=self.health_check, daemon=True).start()
+        # threading.Thread(target=self.health_check, daemon=True).start()
+        # t3 = threading.Thread(target=self.listen_task, daemon=True).start()
 
-        # asyncio.run(self.listen_task())
+        asyncio.run(self.listen_task())
         self.health_check()
-
 
     def health_check(self):
         """Send a heartbeat every 10s."""
-        while True:
-            sendMessage(
-                conn=RabbitMQWorker.conn,
-                messageId="heartbeat",
-                status="healthy"
-            )
-            time.sleep(10)
+        try:
+            while True:
+                sendMessage(
+                    conn=RabbitMQWorker.conn,
+                    destination=['supervisor'],
+                    messageId=str(uuid.uuid4()),
+                    status="healthy",
+                    reason="Message sent to other worker successfully.",
+                )
+                time.sleep(10)
+        except Exception as e:
+            log(f"Health check error: {e}", 'error')
+            print(f"Health check error: {e}")
+            traceback.print_exc()
+            
     def listen_task(self):
+        log("RabbitMQWorker is listening for messages...", "info")
         while True:
             try:
                 if RabbitMQWorker.conn.poll(1):  # Check for messages with 1 second timeout
@@ -118,31 +137,61 @@ class RabbitMQWorker(Worker):
     ##########################################
     # add your worker methods here
     ##########################################
-    def consumeMessage(self) :
-        
-      print(f"[*] Waiting for messages in queue: {self.consumeQueue}")
-      def callback(ch, method, properties, body):
-        print(f"[x] Received message: {body.decode()}")
-        self.sendToOtherWorker(
-            destination=['VectorWorker/runCreating/'],
-            messageId=str(uuid.uuid4()),
-            data=convertMessage(body.decode())
-        )
-        # Optional: acknowledge the message
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+    def consumeMessage(self, queueName, destination=None):
+        try:
+            # Each thread should have its own connection
+            parameters = pika.URLParameters(self.connection_string)
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
 
-      print(f"[*] Starting to consume from queue: {self.consumeQueue}")
-      self.consumeChannel.basic_qos(prefetch_count=1)
-      self.consumeChannel.basic_consume(queue=self.consumeQueue, on_message_callback=callback)
+            channel.queue_declare(queue=queueName, durable=True)
+            channel.basic_qos(prefetch_count=1)
 
-      try:
-          self.consumeChannel.start_consuming()
-      except KeyboardInterrupt:
-          self.consumeChannel.stop_consuming()
-          print("[*] Stopped consuming")
-      except Exception as e:
-          log(f"Error consuming from queue: {e}", 'error')
-        
+            print(f"[*] Waiting for messages in queue: {queueName}")
+
+            def callback(ch, method, properties, body):
+                print(f"[x] Received message: {body.decode()}")
+                self.sendToOtherWorker(
+                    destination=destination,
+                    messageId=str(uuid.uuid4()),
+                    data=convertMessage(body.decode())
+                )
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+
+            channel.basic_consume(queue=queueName, on_message_callback=callback)
+            channel.start_consuming()
+
+        except Exception as e:
+            log(f"Error in consuming from queue {queueName}: {e}", 'error')
+
+    def produceMessage(self,data):
+        try:
+            print(f"[*] Producing message to queue: {self.produceQueue}")
+            print(f"[*] Data: {json.dumps(data['data'])}")
+            
+            # Create a separate connection for producing (don't use self.connection)
+            parameters = pika.URLParameters(self.connection_string)
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
+            
+            channel.exchange_declare(exchange=self.produceQueue, durable=True, exchange_type='fanout')
+            channel.basic_publish(
+                exchange=self.produceQueue,
+                routing_key='',
+                body=json.dumps(data['data']),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # make message persistent
+                )
+            )
+            print(f"[*] Message sent to queue: {self.produceQueue}")
+            
+            # Close the connection properly
+            channel.close()
+            connection.close()
+            
+        except Exception as e:
+            log(f"Error producing message: {e}", 'error')
+
 def main(conn: Connection, config: dict):
     worker = RabbitMQWorker()
     worker.run(conn, config)

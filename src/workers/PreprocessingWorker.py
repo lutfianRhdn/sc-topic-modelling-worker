@@ -536,6 +536,9 @@ class PreprocessingWorker(Worker):
             log(f"Running preprocessing for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
             tweets=data['tweets']
             keyword=data['keyword']
+            start_date=data['start_date']
+            end_date=data['end_date']
+            
             
             text_tweet = [tweet['full_text'] for tweet in tweets if 'full_text' in tweet]
             try:
@@ -599,6 +602,8 @@ class PreprocessingWorker(Worker):
                     'keyword': keyword,
                     'tweets': data['tweets'].tolist(),
                     'label': data['label'].tolist(),
+                    "start_date": start_date,
+                    "end_date": end_date,
                 }
             )
             

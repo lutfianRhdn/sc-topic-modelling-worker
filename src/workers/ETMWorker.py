@@ -206,6 +206,8 @@ class ETMWorker(Worker):
       try:
         tweets = data['tweets']
         keyword = data['keyword']
+        start_date = data['start_date']
+        end_date = data['end_date']
         log(f"Running ETM with id {id}", "info")
         
         generated_topic = self.generateTopic()
@@ -224,7 +226,9 @@ class ETMWorker(Worker):
             data={
                 "topics": topics,
                 "num_of_topic": num_of_topic,
-                "keyword": keyword
+                "keyword": keyword,
+                "start_date": start_date,
+                "end_date": end_date,
             }
         )
         # print(documents_prob)

@@ -96,6 +96,8 @@ class LLMWorker(Worker):
         topics= data['topics']
         keyword = data['keyword']
         best_num_topics_str = data['num_of_topic']
+        start_date = data['start_date']
+        end_date = data['end_date']
         log(f"LLMWorker getContext called with id: {id}, topics: {topics}, keyword: {keyword}, best_num_topics_str: {best_num_topics_str}", "info")
         # print(topics)
         completion = self.client.chat.completions.create(
@@ -122,16 +124,24 @@ class LLMWorker(Worker):
             print("Tidak ada JSON yang ditemukan dalam string.")
         # Print the generated sentence
         res_json = json.loads(json_text)
-        # print(type(res_json))
-        res = [{
-            "topicId":0,
-            "projectId": id,
-            "context": "",
-            "words":[],
-            "keyword":keyword,
-            "interpretation": []
-        }]
-        
+        res =[]
+        for index,item in enumerate(res_json):
+            res.append({
+                "topicId":index,
+                "projectId":id,
+                "context":item['kalimat'],
+                "words":[word.lstrip() for word in  item['kata_kunci'].split(',')]
+            })
+        self.sendToOtherWorker(
+            destination=[f"DatabaseInteractionWorker/saveContext/{id}"],
+            messageId=message['messageId'],
+            data={
+                "contexts":res,
+                "keyword": keyword,
+                "start_date": start_date,
+                "end_date": end_date,
+                }
+        )
 # topicId
 # 0
 # projectId
@@ -144,15 +154,15 @@ class LLMWorker(Worker):
 # keyword
 # "makan gratis"
 
-        for index, item in enumerate(res_json):
-            res['context'] += str(index+1)+". "+item['kalimat']+"<br/>"
-            res['interpretation'].append({
-                "word_topic": item['kata_kunci'],
-                "word_interpretation": item['kalimat']
-            })
+        # for index, item in enumerate(res_json):
+        #     res['context'] += str(index+1)+". "+item['kalimat']+"<br/>"
+        #     res['interpretation'].append({
+        #         "word_topic": item['kata_kunci'],
+        #         "word_interpretation": item['kalimat']
+        #     })
             
         
-        print(res)
+        # print(res)
         # return res 
 
 def main(conn: Connection, config: dict):

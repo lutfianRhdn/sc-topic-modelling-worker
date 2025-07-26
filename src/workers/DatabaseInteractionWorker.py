@@ -86,13 +86,32 @@ class DatabaseInteractionWorker(Worker):
       self._isBusy= False
       return {"data":data,"destination":["RestApiWorker/onProcessed"]}
       
-  def getTweetByIdStr(self,id,data):
-    ids = data.get('id_str', [])
-    # tweet = db2.tweets.find(
-    #     {"id_str": {"$in": id_str_list, "$ne": None}},
-    #     {"_id":0, "full_text": 1, "id_str": 1, "user_id_str": 1, "username" : 1, "conversation_id_str": 1, "tweet_url" : 1, "in_reply_to_screen_name" :1}
-    # )
-    # return tweet
+  def saveContext(self, id, data):
+    contexts = data['contexts']
+    keyword= data['keyword']
+    start_date = data['start_date']
+    end_date = data['end_date']
+    alreadyExists = self._db['topics'].find({"projectId": id})
+    if len(list(alreadyExists)) == 0:
+      log(f"Project with id {id} already exists in topics collection.", "error")
+      self._db['topics'].insert_many(contexts)
+    print({
+          "topics": [context['context'] for context in contexts ],
+          "keyword": keyword,
+          "start_date": start_date,
+          "end_date": end_date
+        })
+    return {
+      "data": 
+        {
+          "topics": [context['context'] for context in contexts ],
+          "keyword": keyword,
+          "projectId":id,
+          "start_date": start_date,
+          "end_date": end_date
+        },
+      "destination": ["RabbitMQWorker/produceMessage/"]}
+    pass
   def getTopicByProjectId(self,projectId):
     topicProject =  self._db['topics'].find_one(
         {"projectId": projectId},
@@ -151,6 +170,8 @@ class DatabaseInteractionWorker(Worker):
         "data": {
           "tweets":list(cursor),
           "keyword": keyword,
+          'start_date': start_date,
+          'end_date': end_date
           },
         "destination": [f"PreprocessingWorker/run_preprocessing/{id}"]
     }

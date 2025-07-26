@@ -32,18 +32,8 @@ class Supervisor:
         self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
         self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)
         self.create_worker('LLMWorker',count=1, config=LLMWorkerConfig)
-        #run funtion after 5 sconds
-        # self.create_worker("RabbitMQWorker", count=1, config=RabbitMQWorkerConfig)
-        
-        # self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
-        # self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)
-        
-        
-        # self.create_worker("TemplateWorker", count=1, config={
-        #   # Add any configuration needed for your worker here
-        #   'example_config': 'value'
-        # })
-        
+        self.create_worker("RabbitMQWorker", count=1, config=RabbitMQWorkerConfig)
+
         ####
         # until this part
         ####
