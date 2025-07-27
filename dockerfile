@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Set the working directory in the container
 WORKDIR /app
 
+
 # Install build dependencies (termasuk libisl-dev)
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gcc \
@@ -20,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the requirements file into the container
 COPY requirements.txt .
-
+# Upgrade pip, setuptools, and wheel to the latest versions
+RUN pip install --upgrade pip setuptools wheel
 # Install the Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
