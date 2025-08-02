@@ -152,6 +152,7 @@ class ETMWorker(Worker):
     #     return documents_probability
     
     def document(self, data_tweet, etm_model):
+        train_corpus = self.dataset.get_partitioned_corpus()[0]
         full_texts = [doc['full_text'] for doc in data_tweet]
         # print("Training corpus size:", len(train_corpus))
         documents_probability = []
@@ -187,21 +188,19 @@ class ETMWorker(Worker):
         return coh.score(model_output)
     def run_etm(self,id,data,message):
       try:
+        log(f"Running ETM with id {id}", "info")
+        generated_topic = self.generateTopic()
+        num_of_topic = generated_topic[0]
+        topics = generated_topic[2]['topics']
+        print(f"Generated {num_of_topic} topics", "info")
         tweets = data['raw_tweets']
         keyword = data['keyword']
         start_date = data['start_date']
         end_date = data['end_date']
-        log(f"Running ETM with id {id}", "info")
         
-        generated_topic = self.generateTopic()
         
-        num_of_topic = generated_topic[0]
-        print(f"Generated {num_of_topic} topics", "info")
-        print(generated_topic[2])
-        print(f"document size:{generated_topic[1]} ", )
-        topics = generated_topic[2]['topics']
         documents_prob = self.document(data_tweet=tweets, etm_model=generated_topic)
-        print("Documents with topics and probabilities:" + str(documents_prob))
+        log(f"Generated {len(documents_prob)}/{len(tweets)}/{len(data['tweets'])} documents with topics", "info")
         self.sendToOtherWorker(
             destination=[f"DatabaseInteractionWorker/saveDocuments/{id}"],
             messageId=str(uuid.uuid4()),

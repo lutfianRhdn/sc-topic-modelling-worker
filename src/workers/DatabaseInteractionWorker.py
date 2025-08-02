@@ -38,6 +38,18 @@ class DatabaseInteractionWorker(Worker):
     while True:
       try:
           if self.conn.poll(1):  # Check for messages with 1 second timeout
+              if(self._isBusy):
+                print("DatabaseInteractionWorker is busy, ignoring message.")
+                self.sendToOtherWorker(
+                    messageId=message.get("messageId"),
+                    destination=message.get("destination", []),
+                    data=message.get("data", {}),
+                    status="failed",
+                    reason="SERVER_BUSY"
+                )
+                return
+              self._isBusy =True
+
               message = self.conn.recv()
               dest = [
                   d
@@ -57,10 +69,12 @@ class DatabaseInteractionWorker(Worker):
                   messageId=message["messageId"],
                   data=convertObjectIdToStr(result.get('data', [])),
               )
+              self._isBusy =False
       except EOFError:
           log("Connection closed by supervisor",'error')
           break
       except Exception as e:
+          traceback.print_exc()
           log(f"Message loop error: {e}",'error')
           break
   
@@ -74,16 +88,12 @@ class DatabaseInteractionWorker(Worker):
     keyword= data['keyword']
     start_date = data['start_date']
     end_date = data['end_date']
+    log(f"Saving contexts for project {id} with keyword '{keyword}' from {start_date} to {end_date} with Lengh {len(contexts)}.", "info")
     alreadyExists = self._db['topics'].find({"projectId": id})
     if len(list(alreadyExists)) == 0:
       log(f"Project with id {id} already exists in topics collection.", "error")
       self._db['topics'].insert_many(contexts)
-    print({
-          "topics": [context['context'] for context in contexts ],
-          "keyword": keyword,
-          "start_date": start_date,
-          "end_date": end_date
-        })
+  
     return {
       "data": 
         {
@@ -94,7 +104,7 @@ class DatabaseInteractionWorker(Worker):
           "end_date": end_date
         },
       "destination": ["RabbitMQWorker/produceMessage/"]}
-    pass
+    
   def getTopicByProjectId(self,id, data):
     topicProject =  self._db['topics'].find_one(
         {"projectId": id},
@@ -177,6 +187,7 @@ class DatabaseInteractionWorker(Worker):
     keyword = data['keyword']
     start_date = data['start_date']
     end_date = data['end_date']
+    log(f"Saving documents for project {id} with keyword '{keyword}' from {start_date} to {end_date} with Lengh {len(documents)}.", "info")
     if not documents:
       log(f"No documents to save for project {id}.", "error")
       return {"data": [], "destination": ["RestApiWorker/onProcessed"]}
@@ -189,17 +200,22 @@ class DatabaseInteractionWorker(Worker):
       documents = [
           {**doc, "projectId": id} for doc in documents
       ]
-      self._db['documents'].insert_many(documents)
+    #insert many batch 200 document
+    
+    batch_size = 200
+    for i in range(0, len(documents),batch_size):
+        batch = documents[i:i + batch_size]
+        self._db['documents'].insert_many(batch)
+    
     
     return {
         "data": {
-          "documents": documents,
           "keyword": keyword,
           'projectId': id,
           'start_date': start_date,
           'end_date': end_date
         },
-        "destination": ["RabbitMQWorker/produceMessage/"]
+        "destination": ["supervisor"]
     }
   def deleteTopicByProjectId(self, id, data):
     result = self._db['topics'].delete_many({"projectId": id})
@@ -231,6 +247,7 @@ def convertObjectIdToStr(data: list) -> list:
         return data 
       for doc in data:
           # print(f"Converting document: {doc}")
+          
 
           if isinstance(doc, dict):
               doc["_id"] = str(doc["_id"]) if "_id" in doc else ""

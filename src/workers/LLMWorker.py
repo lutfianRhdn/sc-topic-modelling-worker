@@ -126,29 +126,7 @@ class LLMWorker(Worker):
                 "end_date": end_date,
                 }
         )
-# topicId
-# 0
-# projectId
-# "678e08cd7ae271700e0f74ef"
-# context
-# "An error occurred: Error communicating with OpenAI: HTTPSConnectionPoo…"
-
-# words
-# Array (10)
-# keyword
-# "makan gratis"
-
-        # for index, item in enumerate(res_json):
-        #     res['context'] += str(index+1)+". "+item['kalimat']+"<br/>"
-        #     res['interpretation'].append({
-        #         "word_topic": item['kata_kunci'],
-        #         "word_interpretation": item['kalimat']
-        #     })
-            
         
-        # print(res)
-        # return res 
-
 def main(conn: Connection, config: dict):
     worker = LLMWorker()
     worker.run(conn, config)
