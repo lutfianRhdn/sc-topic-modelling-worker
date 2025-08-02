@@ -32,11 +32,6 @@ class RabbitMQWorker(Worker):
     produceChannel:pika.adapters.blocking_connection.BlockingChannel
     produceCompensationChannel:pika.adapters.blocking_connection.BlockingChannel
     produceCompensationQueue:str
-    def __init__(self):
-        # we'll assign these in run()
-        self._port: int = None
-
-        self.requests: dict = {}
     def run(self, conn: Connection, config:dict):
         # assign here
         RabbitMQWorker.conn = conn

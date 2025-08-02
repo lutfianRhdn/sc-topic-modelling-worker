@@ -17,11 +17,7 @@ class RestApiWorker(FlaskView):
     route_base = "/"
     conn:Connection
     requests: dict = {}
-    def __init__(self):
-        # we'll assign these in run()
-        self._port: int = None
-
-        self.requests: dict = {}
+   
         
     def run(self, conn: Connection, port: int):
         # assign here
@@ -31,24 +27,12 @@ class RestApiWorker(FlaskView):
         RestApiWorker.register(app)
 
         # start background threads *before* blocking server
-        threading.Thread(target=self.listen_task, daemon=True).start()
-        threading.Thread(target=self.health_check, daemon=True).start()
 
         app.run(debug=True, port=self._port, use_reloader=False,host="0.0.0.0")
-        # asyncio.run(self.listen_task())
-        self.health_check()
+        asyncio.run(self.listen_task())
 
 
-    def health_check(self):
-        """Send a heartbeat every 10s."""
-        while True:
-            sendMessage(
-                conn=RestApiWorker.conn,
-                messageId="heartbeat",
-                status="healthy"
-            )
-            time.sleep(10)
-    def listen_task(self):
+    async def listen_task(self):
         while True:
             try:
                 if RestApiWorker.conn.poll(1):  # Check for messages with 1 second timeout
@@ -115,6 +99,25 @@ class RestApiWorker(FlaskView):
             "message": "Welcome to the Rest API Worker",
             "status": "success"
         }), 200
+    @route('/topic-by-project/<projectId>', methods=['GET'])
+    def getTopicByProjectId(self, projectId) :
+        """
+        Get topic by project id
+        """
+        data = request.json
+        destination = f"ETMWorker/getTopicByProjectId/{projectId}"
+        result = self.sendToOtherWorker(destination, data)
+        return jsonify(result), 200
+    @route('/document-by-project/<projectId>', methods=['GET'])
+    def getDocumentByProjectId(self, projectId):
+        """
+        Get documents by project id
+        """
+        data = request.json
+        destination = f"DatabaseInteractionWorker/getDocumentByProjectId/{projectId}"
+        result = self.sendToOtherWorker(destination, data)
+        return jsonify(result), 200
+    
 
 def main(conn: Connection, config: dict):
     worker = RestApiWorker()

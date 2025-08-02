@@ -14,7 +14,6 @@ class DatabaseInteractionWorker(Worker):
   #################
   # dont edit this part
   ################
-  _instanceId: str    
   _isBusy: bool = False
   _client: MongoClient 
   _db: str 
@@ -26,7 +25,6 @@ class DatabaseInteractionWorker(Worker):
     self.connection_string = config.get("connection_string", "mongodb://localhost:27017/") 
 
   def run(self) -> None:
-    self._instanceId = "DatabaseInteractionWorker"
     self._client = MongoClient(self.connection_string)
     self._db= self._client[self._db]
     self._dbTweet = self._client[self._dbTweet]
@@ -34,14 +32,7 @@ class DatabaseInteractionWorker(Worker):
       log("Failed to connect to MongoDB", "error")
     log(f"Connected to MongoDB at {self.connection_string}", "success")
     asyncio.run(self.listen_task())
-    self.health_check()
 
-  
-  def health_check(self) -> None:
-    while True :
-      pass
-      sendMessage(conn=self.conn,messageId=self._instanceId, status="healthy")
-      time.sleep(10)
   
   async def listen_task(self) -> None:
     while True:
@@ -77,15 +68,7 @@ class DatabaseInteractionWorker(Worker):
   # Methods for Database Interaction
   #########################################
   
-  def getData(self,id):
-    if not self._isBusy:
-      self._isBusy =True
-      collection= self._db['mycollection']
-      data = list(collection.find({"project_id":id}))
-      
-      self._isBusy= False
-      return {"data":data,"destination":["RestApiWorker/onProcessed"]}
-      
+
   def saveContext(self, id, data):
     contexts = data['contexts']
     keyword= data['keyword']
@@ -112,12 +95,26 @@ class DatabaseInteractionWorker(Worker):
         },
       "destination": ["RabbitMQWorker/produceMessage/"]}
     pass
-  def getTopicByProjectId(self,projectId):
+  def getTopicByProjectId(self,id, data):
     topicProject =  self._db['topics'].find_one(
-        {"projectId": projectId},
+        {"projectId": id},
         {"_id": 0}
     )
     return {"data": topicProject, "destination": ["RestApiWorker/onProcessed"]}
+  def getDocumentsByProjectId(self, id, data):
+    documentsProject = self._db['documents'].find(
+        {"projectId": id},
+        {"_id": 0}
+    )
+    documentsList = list(documentsProject)
+    if not documentsList:
+      log(f"No documents found for project {id}.", "info")
+      return {"data": [], "destination": ["RestApiWorker/onProcessed"]}
+    
+    return {
+        "data": documentsList,
+        "destination": ["RestApiWorker/onProcessed"]
+    }
   def getTweetByKeyword(self,id,data):
     keyword = data['keyword']
     start_date = data['start_date']
@@ -175,6 +172,47 @@ class DatabaseInteractionWorker(Worker):
           },
         "destination": [f"PreprocessingWorker/run_preprocessing/{id}"]
     }
+  def saveDocuments(self, id, data):
+    documents = data['documents']
+    keyword = data['keyword']
+    start_date = data['start_date']
+    end_date = data['end_date']
+    if not documents:
+      log(f"No documents to save for project {id}.", "error")
+      return {"data": [], "destination": ["RestApiWorker/onProcessed"]}
+    
+    # Check if the project already exists
+    alreadyExists = self._db['documents'].find({"projectId": id})
+    if len(list(alreadyExists)) == 0:
+      log(f"Project with id {id} already exists in documents collection.", "error")
+      self._db['documents'].insert_many(documents)
+    
+    return {
+        "data": {
+          "documents": documents,
+          "keyword": keyword,
+          'projectId': id,
+          'start_date': start_date,
+          'end_date': end_date
+        },
+        "destination": ["RabbitMQWorker/produceMessage/"]
+    }
+  def deleteTopicByProjectId(self, id, data):
+    result = self._db['topics'].delete_many({"projectId": id})
+    if result.deleted_count > 0:
+        log(f"Deleted {result.deleted_count} topics for project {id}.", "success")
+    else:
+        log(f"No topics found for project {id}.", "info")
+    return {"data": {"deleted_count": result.deleted_count}, "destination": ["RestApiWorker/onProcessed"]}
+  def deleteDocumentsByProjectId(self, id, data):
+    result = self._db['documents'].delete_many({"projectId": id})
+    if result.deleted_count > 0:
+        log(f"Deleted {result.deleted_count} documents for project {id}.", "success")
+    else:
+        log(f"No documents found for project {id}.", "info")
+    return {"data": {"deleted_count": result.deleted_count}, "destination": ["RestApiWorker/onProcessed"]}
+  
+    
   # def getTextTweetsByKeyword(self, id, data):
      
 ############### Helper function to convert ObjectId to string in a list of documents

@@ -41,3 +41,12 @@ LLMWorkerConfig = {
     }
   }
 }
+
+allConfigs ={
+    "DatabaseInteractionWorker": DatabaseInteractionWorkerConfig,
+    "RestApiWorker": RestApiWorkerConfig,
+    "PreprocessingWorker": PreprocessingWorkerConfig,
+    "ETMWorker": ETMWorkerConfig,
+    "LLMWorker": LLMWorkerConfig,
+    "RabbitMQWorker": RabbitMQWorkerConfig
+}

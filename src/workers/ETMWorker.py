@@ -1,3 +1,4 @@
+import asyncio
 from multiprocessing.connection import Connection
 import threading
 import traceback
@@ -22,14 +23,9 @@ class ETMWorker(Worker):
     ###############
     # dont edit this part
     ###############
-    route_base = "/"
     conn:Connection
-    requests: dict = {}
-    def __init__(self):
-        # we'll assign these in run()
-        self._port: int = None
+    _isBusy: bool = False
 
-        self.requests: dict = {}
         
     def run(self, conn: Connection, config:dict):
         # assign here
@@ -44,23 +40,11 @@ class ETMWorker(Worker):
         
         #### until this part
         # start background threads *before* blocking server
-        threading.Thread(target=self.listen_task, daemon=True).start()
-        threading.Thread(target=self.health_check, daemon=True).start()
 
-        # asyncio.run(self.listen_task())
-        self.health_check()
+        asyncio.run(self.listen_task())
 
 
-    def health_check(self):
-        """Send a heartbeat every 10s."""
-        while True:
-            sendMessage(
-                conn=ETMWorker.conn,
-                messageId="heartbeat",
-                status="healthy"
-            )
-            time.sleep(10)
-    def listen_task(self):
+    async def listen_task(self):
         while True:
             try:
                 if ETMWorker.conn.poll(1):  # Check for messages with 1 second timeout

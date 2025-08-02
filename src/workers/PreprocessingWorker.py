@@ -65,22 +65,9 @@ class PreprocessingWorker(Worker):
         
         #### until this part
         # start background threads *before* blocking server
-        threading.Thread(target=self.listen_task, daemon=True).start()
-        threading.Thread(target=self.health_check, daemon=True).start()
 
-        # asyncio.run(self.listen_task())
-        self.health_check()
+        asyncio.run(self.listen_task())
 
-
-    def health_check(self):
-        """Send a heartbeat every 10s."""
-        while True:
-            sendMessage(
-                conn=PreprocessingWorker.conn,
-                messageId="heartbeat",
-                status="healthy"
-            )
-            time.sleep(10)
     def listen_task(self):
         while True:
             try:
