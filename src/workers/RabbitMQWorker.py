@@ -60,11 +60,6 @@ class RabbitMQWorker(Worker):
           t1 = threading.Thread(target=self.consumeMessage, args=(self.consumeQueue, ["PreprocessingWorker/prepare_preprocessing/"])).start()
           t2 = threading.Thread(target=self.consumeMessage, args=(self.consumeCompensationQueue, ["DatabaseInteractionWorker/removeContext/", "DatabaseInteractionWorker/removeDocument"])).start()
         
-        #   t4 = threading.Thread(target=self.health_check, daemon=True).start()
-        #   t1.join()
-        #   t2.join()
-        #   t3.join()
-        #   t4.join()
         except Exception as e:
           traceback.print_exc()
 
@@ -74,29 +69,10 @@ class RabbitMQWorker(Worker):
           return
         #### until this part
         # start background threads *before* blocking server
-        # threading.Thread(target=self.health_check, daemon=True).start()
         # t3 = threading.Thread(target=self.listen_task, daemon=True).start()
 
         asyncio.run(self.listen_task())
-        self.health_check()
 
-    def health_check(self):
-        """Send a heartbeat every 10s."""
-        try:
-            while True:
-                sendMessage(
-                    conn=RabbitMQWorker.conn,
-                    destination=['supervisor'],
-                    messageId=str(uuid.uuid4()),
-                    status="healthy",
-                    reason="Message sent to other worker successfully.",
-                )
-                time.sleep(10)
-        except Exception as e:
-            log(f"Health check error: {e}", 'error')
-            print(f"Health check error: {e}")
-            traceback.print_exc()
-            
     def listen_task(self):
         log("RabbitMQWorker is listening for messages...", "info")
         while True:
@@ -158,6 +134,13 @@ class RabbitMQWorker(Worker):
 
         except Exception as e:
             log(f"Error in consuming from queue {queueName}: {e}", 'error')
+            self.connection.close()
+            self.sendToOtherWorker(
+                destination=["RabbitMQWorker/consumeMessage/"],
+                messageId=str(uuid.uuid4()),
+                data={"error": str(e)},
+                reason="Failed to consume message from RabbitMQ queue."
+            )
 
     def produceMessage(self,data):
         try:

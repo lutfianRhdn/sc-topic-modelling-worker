@@ -130,7 +130,6 @@ class ETMWorker(Worker):
         # print(f"\nBest model has {best_topic} topics with coherence={best_coh:.4f}",end="\n")
 
         model = self.create_and_train_etm(best_topic)
-        
         return model
         
     # def document(self, data_tweet, etm_model):
@@ -153,7 +152,7 @@ class ETMWorker(Worker):
     #     return documents_probability
     
     def document(self, data_tweet, etm_model):
-        train_corpus = self.dataset.get_partitioned_corpus()[0]
+        full_texts = [doc['full_text'] for doc in data_tweet]
         # print("Training corpus size:", len(train_corpus))
         documents_probability = []
         
@@ -168,15 +167,15 @@ class ETMWorker(Worker):
             column = probs[:, i]
             topic_index = np.argmax(column)
             probability = column[topic_index]
-            
-            # print("Doc {}: topic={}, prob={}".format(i+1, topic_index+1, probability))
+            print("Doc {}: topic={}, prob={}".format(i+1, topic_index+1, probability))
 
-            data_tweet[i] ={
-                "full_text": data_tweet[i],
+            full_texts[i] ={
+                **data_tweet[i],
+                "full_text": full_texts[i],
                 "topic": str(topic_index),
                 "probability": str(probability)
             }
-            documents_probability.append(data_tweet[i])
+            documents_probability.append(full_texts[i])
 
         return documents_probability
 
@@ -188,7 +187,7 @@ class ETMWorker(Worker):
         return coh.score(model_output)
     def run_etm(self,id,data,message):
       try:
-        tweets = data['tweets']
+        tweets = data['raw_tweets']
         keyword = data['keyword']
         start_date = data['start_date']
         end_date = data['end_date']
@@ -199,11 +198,21 @@ class ETMWorker(Worker):
         num_of_topic = generated_topic[0]
         print(f"Generated {num_of_topic} topics", "info")
         print(generated_topic[2])
+        print(f"document size:{generated_topic[1]} ", )
         topics = generated_topic[2]['topics']
-        # documents_prob = self.document(data_tweet=tweets, etm_model=generated_topic)
-        # print("Documents with topics and probabilities:")
-        # 	context = Llm.getContext(topics, keyword, num_topics)
-
+        documents_prob = self.document(data_tweet=tweets, etm_model=generated_topic)
+        print("Documents with topics and probabilities:" + str(documents_prob))
+        self.sendToOtherWorker(
+            destination=[f"DatabaseInteractionWorker/saveDocuments/{id}"],
+            messageId=str(uuid.uuid4()),
+            data={
+                "documents": documents_prob,
+                "keyword": keyword,
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        )
+        # return
         self.sendToOtherWorker(
             destination=[f"LLMWorker/getContext/{id}"],
             messageId=str(uuid.uuid4()),

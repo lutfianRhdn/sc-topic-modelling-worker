@@ -184,7 +184,11 @@ class DatabaseInteractionWorker(Worker):
     # Check if the project already exists
     alreadyExists = self._db['documents'].find({"projectId": id})
     if len(list(alreadyExists)) == 0:
+      
       log(f"Project with id {id} already exists in documents collection.", "error")
+      documents = [
+          {**doc, "projectId": id} for doc in documents
+      ]
       self._db['documents'].insert_many(documents)
     
     return {

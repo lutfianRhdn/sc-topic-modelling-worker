@@ -20,7 +20,6 @@ from openai import AsyncAzureOpenAI, AzureOpenAI
 import pandas
 from  utils.log import log 
 from utils.handleMessage import sendMessage, convertMessage
-
 from .Worker import Worker
 
 class PreprocessingWorker(Worker):
@@ -417,6 +416,8 @@ class PreprocessingWorker(Worker):
         Returns:
             list: Lists of tokens with stopwords, short tokens (≤2 chars), and custom words removed.
         """
+        # print("Removing stopwords, short tokens, and custom words...")
+        log("Removing stopwords, short tokens, and custom words...", "info")
         factory = StopWordRemoverFactory()
         stopword_remover = factory.create_stop_word_remover()
 
@@ -425,12 +426,13 @@ class PreprocessingWorker(Worker):
             "aku","saya","gue","gw","kamu","kau","engkau",
             "dia","ia","kita","kami","mereka","anda","lo","lu", "kalian"
         ]
-
+        log("Curating stopwords...", "info")
+        
+        log("before curating stopwords len tweets: " + str(len(tweets)), "info")
         columns_with_one, rare_words = self.curating_stopword(tweets)
         custom_stopwords = set(columns_with_one + rare_words + ['aduh','sangat','amp', 'the', 'link', 'yang', "iya", "ada", "tin", 'sangat', 'tidak', 'jadi', 'mungkin', 'apa', 'orang', 'wah'] + PRON)
         
         cleaned_texts = []
-        
         for tokens in tweets:
             sentence = ' '.join(tokens)
             # Step 1: Remove default Indonesian stopwords using Sastrawi
@@ -441,9 +443,7 @@ class PreprocessingWorker(Worker):
                 if len(token) > 2 and token.lower() not in custom_stopwords
             ]
             cleaned_texts.append(cleaned_tokens)
-        
-        cleaned_texts =[tweet for tweet in cleaned_texts if tweet]
-        
+        cleaned_texts =[tweet for tweet in cleaned_texts ]
         return cleaned_texts
     
     def split_dataset(self, tweets):
@@ -505,7 +505,7 @@ class PreprocessingWorker(Worker):
       keyword = data['keyword']
       start_date = data['start_date']
       end_date = data['end_date']
-      project_id = data['project_id']
+      project_id = data['projectId']
       m_id = message['messageId']
       log(f"Preparing preprocessing for keyword: {keyword}, project_id: {project_id}, messageId: {m_id}", "info")
       self.sendToOtherWorker(
@@ -520,8 +520,11 @@ class PreprocessingWorker(Worker):
       log(f"Sent request to DatabaseInteractionWorker for keyword: {keyword}, project_id: {project_id}, messageId: {m_id}", "info")
     def run_preprocessing(self, id,data,message):
         try:
-            log(f"Running preprocessing for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
+            # log(f"Running preprocessing for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
             tweets=data['tweets']
+            print(tweets)
+            return
+            print(f"Received {len(tweets)} tweets for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
             keyword=data['keyword']
             start_date=data['start_date']
             end_date=data['end_date']
@@ -556,38 +559,58 @@ class PreprocessingWorker(Worker):
                         all_tweets=text_tweet,
                         keyword=keyword,
                     ))
-            log(f"Augmentation completed for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"Augmentation returned {len(data)}/{len(tweets)} tweets for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            # log(f"Augmentation completed for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             log(f"Starting preprocessing steps for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             log(f"Removing URLs for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.remove_url(data)
-            log(f"Removing Emoticons for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success removing url {len(data)}/{len(tweets)}, Removing Emoticons for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.replace_emoticons(data)
-            log(f"Removing Twitter symbols for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success removing emoticon {len(data)}/{len(tweets)} ,Removing Twitter symbols for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.remove_twitter_symbols(data)
-            log(f"Removing symbols and punctuation for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success remove tweet symbol {len(data)}/{len(tweets)}, Removing symbols and punctuation for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.remove_symbols_and_punctuation(data)
-            log(f"Tokenizing for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success remove symbol {len(data)}/{len(tweets)}, Tokenizing for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.tokenizing(data)
-            log(f"Case folding for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success tokenize {len(data)}/{len(tweets)}, Case folding for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.case_folding(data)
-            log(f"Deleting extra letters for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"successs casefolding {len(data)}/{len(tweets)}, Deleting extra letters for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.delete_extra_letters(data)
-            log(f"Normalization for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success delete extra later {len(data)}/{len(tweets)}.Normalization for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.normalization(data)
-            log(f"Stemming for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success normalization {len(data)}/{len(tweets)}, Stemming for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.stem_tokenized_list_parallel(data)
-            log(f"Curating stopwords for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            log(f"success steaming {len(data)}/{len(tweets)},Curating stopwords for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
             data = self.stopword_removal(data)
+            removed_index = [index for index, tweet in enumerate(data) if len(tweet) == 0]
+            cleaned_data = [tweet for index, tweet in enumerate(data) if len(tweet) > 0]
+            print(f"Removed {len(removed_index)} empty tweets from {len(data)} = {len(cleaned_data)} total tweets for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            
+            data = cleaned_data
             data = self.create_dataframe(data)
+            print(len(data))
+            
             data = self.split_dataset(data)
+            print(len(data))
+            
             data = self.create_vocabulary(data)
-            log(f"Preprocessing completed for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
+            
+            log(f"Preprocessing completed for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']} len {len(data)}/{len(tweets)}", "info")
+            # remove tweets on index same at # removed_index
+            removedUncleanTweet = [tweet for i, tweet in enumerate(tweets) if i not in removed_index]
+            print(f"Removed {len(removedUncleanTweet)} unclean tweets from original data", "info")
+            full_text = data['tweets'].tolist()
+            
+            combined_data = [{**tweet, 'full_text': full_text[index]} for index, tweet in enumerate(removedUncleanTweet)]
+            print(f"Combined data length: {len(combined_data)}", "info")
+            log(f"Sending preprocessed data for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']} with length of tweets {len(full_text)} and raw data {len(combined_data)}", "info")
             self.sendToOtherWorker(
                 destination=[f'ETMWorker/run_etm/{id}'],
                 messageId= message['messageId'],
                 data={
                     'keyword': keyword,
-                    'tweets': data['tweets'].tolist(),
+                    'tweets': full_text,
+                    "raw_tweets": combined_data,
                     'label': data['label'].tolist(),
                     "start_date": start_date,
                     "end_date": end_date,
