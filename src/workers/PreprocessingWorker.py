@@ -522,8 +522,6 @@ class PreprocessingWorker(Worker):
         try:
             # log(f"Running preprocessing for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
             tweets=data['tweets']
-            print(tweets)
-            return
             print(f"Received {len(tweets)} tweets for keyword: {data['keyword']}, project_id: {id}, messageId: {message['messageId']}", "info")
             keyword=data['keyword']
             start_date=data['start_date']
