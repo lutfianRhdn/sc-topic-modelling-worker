@@ -193,13 +193,13 @@ class DatabaseInteractionWorker(Worker):
       return {"data": [], "destination": ["RestApiWorker/onProcessed"]}
     
     # Check if the project already exists
-    alreadyExists = self._db['documents'].find({"projectId": id})
-    if len(list(alreadyExists)) == 0:
+    # alreadyExists = self._db['documents'].find({"projectId": id})
+    # if len(list(alreadyExists)) == 0:
       
-      log(f"Project with id {id} already exists in documents collection.", "error")
-      documents = [
-          {**doc, "projectId": id} for doc in documents
-      ]
+      # log(f"Project with id {id} already exists in documents collection.", "error")
+      # documents = [
+      #     {**doc, "projectId": id} for doc in documents
+      # ]
     #insert many batch 200 document
     
     batch_size = 200
