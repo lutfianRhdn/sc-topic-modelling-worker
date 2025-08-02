@@ -197,9 +197,9 @@ class DatabaseInteractionWorker(Worker):
     # if len(list(alreadyExists)) == 0:
       
       # log(f"Project with id {id} already exists in documents collection.", "error")
-      # documents = [
-      #     {**doc, "projectId": id} for doc in documents
-      # ]
+    documents = [
+        {**doc, "projectId": id} for doc in documents
+    ]
     #insert many batch 200 document
     
     batch_size = 200
