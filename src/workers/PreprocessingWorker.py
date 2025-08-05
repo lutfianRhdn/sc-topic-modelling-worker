@@ -599,7 +599,7 @@ class PreprocessingWorker(Worker):
             print(f"Removed {len(removedUncleanTweet)} unclean tweets from original data", "info")
             full_text = data['tweets'].tolist()
             
-            combined_data = [{**tweet, 'full_text': full_text[index]} for index, tweet in enumerate(removedUncleanTweet)]
+            combined_data = [{**tweet, 'full_text': full_text[index],"raw_text":tweet['full_text']} for index, tweet in enumerate(removedUncleanTweet)]
             print(f"Combined data length: {len(combined_data)}", "info")
             log(f"Sending preprocessed data for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']} with length of tweets {len(full_text)} and raw data {len(combined_data)}", "info")
             self.sendToOtherWorker(
