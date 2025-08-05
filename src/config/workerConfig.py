@@ -42,11 +42,21 @@ LLMWorkerConfig = {
   }
 }
 
+CacheWorkerConfig={
+    "redis_url": redis['host'], # type: ignore
+    "redis_port": redis['port'], # type: ignore
+    "redis_db": redis['db'], # type: ignore
+    "redis_username": redis['username'], # type: ignore
+    "redis_password": redis['password'], # type: ignore
+
+} # type: ignore
+
 allConfigs ={
     "DatabaseInteractionWorker": DatabaseInteractionWorkerConfig,
     "RestApiWorker": RestApiWorkerConfig,
     "PreprocessingWorker": PreprocessingWorkerConfig,
     "ETMWorker": ETMWorkerConfig,
     "LLMWorker": LLMWorkerConfig,
-    "RabbitMQWorker": RabbitMQWorkerConfig
+    "RabbitMQWorker": RabbitMQWorkerConfig,
+    "CacheWorkerConfig": CacheWorkerConfig
 }

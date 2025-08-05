@@ -104,17 +104,47 @@ class RestApiWorker(FlaskView):
         """
         Get topic by project id
         """
-        data = request.json
-        destination = f"ETMWorker/getTopicByProjectId/{projectId}"
-        result = self.sendToOtherWorker(destination, data)
+        result = self.sendToOtherWorker(
+            destination=[f"CacheWorker/getByKey/topic_{project_id}"],
+            data={"project_id": "topic_{projectId}",}
+        )
+        if len(result["result"]) == 0:
+            destination = [f"DatabaseInteractionWorker/getTopicByProjectId/{projectId}"]
+            result = self.sendToOtherWorker(destination, data)
+             sendMessage(
+                conn=RestApiWorker.conn,
+                messageId=str(uuid.uuid4()),
+                status="processing",
+                destination=['CacheWorker/set/topic_' + projectId ],
+                data={
+                    "key":f"topic_{projectId}",
+                    "value":result,
+                }
+            )
         return jsonify(result), 200
     @route('/document-by-project/<projectId>', methods=['GET'])
     def getDocumentByProjectId(self, projectId):
         """
         Get documents by project id
         """
-        data = request.json
-        destination = f"DatabaseInteractionWorker/getDocumentByProjectId/{projectId}"
+           result = self.sendToOtherWorker(
+            destination=[f"CacheWorker/getByKey/doc_{project_id}"],
+            data={"project_id": "topic_{projectId}",}
+        )
+        if len(result["result"]) == 0:
+        destination =[ f"DatabaseInteractionWorker/getDocumentByProjectId/{projectId}"]
+            result = self.sendToOtherWorker(destination, data)
+             sendMessage(
+                conn=RestApiWorker.conn,
+                messageId=str(uuid.uuid4()),
+                status="processing",
+                destination=['CacheWorker/set/doc_' + projectId ],
+                data={
+                    "key":f"doc_{projectId}",
+                    "value":result,
+                }
+            )
+        return jsonify(result), 200
         result = self.sendToOtherWorker(destination, data)
         return jsonify(result), 200
     
