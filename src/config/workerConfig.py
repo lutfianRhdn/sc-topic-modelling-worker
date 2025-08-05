@@ -1,4 +1,4 @@
-from .env import database,port,azure,rabbitmq
+from .env import database,port,azure,rabbitmq,redis
 
 RestApiWorkerConfig = {
     "port": port

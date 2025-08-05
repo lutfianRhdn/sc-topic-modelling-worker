@@ -25,20 +25,27 @@ class RestApiWorker(FlaskView):
         self._port = port
 
         RestApiWorker.register(app)
+        def run_listen_task():
+            asyncio.run(self.listen_task())
+        threading.Thread(target=run_listen_task, daemon=True).start()
 
         # start background threads *before* blocking server
 
         app.run(debug=True, port=self._port, use_reloader=False,host="0.0.0.0")
-        asyncio.run(self.listen_task())
+        # asyncio.run(self.listen_task())
 
 
     async def listen_task(self):
         while True:
             try:
                 if RestApiWorker.conn.poll(1):  # Check for messages with 1 second timeout
+                    print("Listening for messages...")
+                    
                     raw = RestApiWorker.conn.recv()
+                    print(f"Received raw message: {raw}")
                     msg = convertMessage(raw)
                     self.onProcessed(raw)
+                    asyncio.sleep(0.1)  # Yield control to the event loop
             except EOFError:
                 break
             except Exception as e:
@@ -51,6 +58,8 @@ class RestApiWorker(FlaskView):
         msg must contain 'messageId' and 'data'.
         """
         task_id = msg.get("messageId")
+        print(f"Received response for task_id: {task_id} with data: {msg.get('data')}")
+        
         entry = RestApiWorker.requests[task_id]
         if not entry:
             return
@@ -105,13 +114,13 @@ class RestApiWorker(FlaskView):
         Get topic by project id
         """
         result = self.sendToOtherWorker(
-            destination=[f"CacheWorker/getByKey/topic_{project_id}"],
+            destination=[f"CacheWorker/getByKey/topic_{projectId}"],
             data={"project_id": "topic_{projectId}",}
         )
         if len(result["result"]) == 0:
             destination = [f"DatabaseInteractionWorker/getTopicByProjectId/{projectId}"]
-            result = self.sendToOtherWorker(destination, data)
-             sendMessage(
+            result = self.sendToOtherWorker(destination, result["result"])
+            sendMessage(
                 conn=RestApiWorker.conn,
                 messageId=str(uuid.uuid4()),
                 status="processing",
@@ -127,14 +136,15 @@ class RestApiWorker(FlaskView):
         """
         Get documents by project id
         """
-           result = self.sendToOtherWorker(
-            destination=[f"CacheWorker/getByKey/doc_{project_id}"],
-            data={"project_id": "topic_{projectId}",}
+        result = self.sendToOtherWorker(
+            destination=[f"CacheWorker/getByKey/doc_{projectId}"],
+            data={"project_id": "doc_{projectId}",}
         )
-        if len(result["result"]) == 0:
-        destination =[ f"DatabaseInteractionWorker/getDocumentByProjectId/{projectId}"]
-            result = self.sendToOtherWorker(destination, data)
-             sendMessage(
+        result = result["result"]
+        if result["result"] == None :
+            destination =[ f"DatabaseInteractionWorker/getDocumentsByProjectId/{projectId}"]
+            result = self.sendToOtherWorker(destination, {})
+            sendMessage(
                 conn=RestApiWorker.conn,
                 messageId=str(uuid.uuid4()),
                 status="processing",
@@ -144,8 +154,6 @@ class RestApiWorker(FlaskView):
                     "value":result,
                 }
             )
-        return jsonify(result), 200
-        result = self.sendToOtherWorker(destination, data)
         return jsonify(result), 200
     
 
