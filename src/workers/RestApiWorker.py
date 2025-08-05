@@ -117,9 +117,10 @@ class RestApiWorker(FlaskView):
             destination=[f"CacheWorker/getByKey/topic_{projectId}"],
             data={"project_id": "topic_{projectId}",}
         )
-        if len(result["result"]) == 0:
+        result = result["result"]
+        if result == None or len(result) ==0 :
             destination = [f"DatabaseInteractionWorker/getTopicByProjectId/{projectId}"]
-            result = self.sendToOtherWorker(destination, result["result"])
+            result = self.sendToOtherWorker(destination, {})
             sendMessage(
                 conn=RestApiWorker.conn,
                 messageId=str(uuid.uuid4()),
@@ -141,9 +142,10 @@ class RestApiWorker(FlaskView):
             data={"project_id": "doc_{projectId}",}
         )
         result = result["result"]
-        if result["result"] == None :
+        if result == None or len(result) ==0 :
             destination =[ f"DatabaseInteractionWorker/getDocumentsByProjectId/{projectId}"]
             result = self.sendToOtherWorker(destination, {})
+            print(result)
             sendMessage(
                 conn=RestApiWorker.conn,
                 messageId=str(uuid.uuid4()),

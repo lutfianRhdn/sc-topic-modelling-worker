@@ -106,15 +106,13 @@ class DatabaseInteractionWorker(Worker):
       "destination": ["RabbitMQWorker/produceMessage/"]}
     
   def getTopicByProjectId(self,id, data):
-    topicProject =  self._db['topics'].find_one(
+    topicProject =  self._db['topics'].find(
         {"projectId": id},
-        {"_id": 0}
     )
-    return {"data": topicProject, "destination": ["RestApiWorker/onProcessed"]}
+    return {"data": list(topicProject), "destination": ["RestApiWorker/onProcessed"]}
   def getDocumentsByProjectId(self, id, data):
     documentsProject = self._db['documents'].find(
         {"projectId": id},
-        {"_id": 0}
     )
     documentsList = list(documentsProject)
     if not documentsList:
