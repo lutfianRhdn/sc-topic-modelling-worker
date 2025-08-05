@@ -99,7 +99,7 @@ class DatabaseInteractionWorker(Worker):
         {
           "topics": [context['context'] for context in contexts ],
           "keyword": keyword,
-          "projectId":id,
+          "project_id":id,
           "start_date": start_date,
           "end_date": end_date
         },
@@ -211,7 +211,7 @@ class DatabaseInteractionWorker(Worker):
     return {
         "data": {
           "keyword": keyword,
-          'projectId': id,
+          'project_id': id,
           'start_date': start_date,
           'end_date': end_date
         },
