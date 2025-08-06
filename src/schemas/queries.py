@@ -33,7 +33,7 @@ class Query:
                 destination=[f"DatabaseInteractionWorker/getTopicByProjectId/{project_id}"],
                 data={}
             )
-            cache_result = result.get("result")
+            cache_result = result['result']
             
             # Cache the result
             worker.send_message_async(
@@ -43,9 +43,10 @@ class Query:
                     "value": cache_result,
                 }
             )
+        print(f"Cache result for topic_{project_id}: {cache_result}")
         
         # Convert response to GraphQL format
-        if not cache_result or cache_result.get("status") != 200:
+        if not cache_result or cache_result.get("status") != 'completed':
             return TopicResponse(
                 data=[],
                 message=cache_result.get("message", "Failed to retrieve topics") if cache_result else "No data found",
@@ -53,7 +54,7 @@ class Query:
             )
         
         # Convert data to TopicProject objects
-        topic_data = cache_result.get("data", [])
+        topic_data = cache_result['result']
         if isinstance(topic_data, list):
             projects = [
                 TopicProject(
@@ -93,7 +94,7 @@ class Query:
             data={"project_id": f"doc_{project_id}"}
         )
         
-        cache_result = result.get("result")
+        cache_result = result['result']
         if cache_result is None or len(cache_result) == 0:
             # Get from database if not in cache
             result = worker.send_to_other_worker(
@@ -110,9 +111,8 @@ class Query:
                     "value": cache_result,
                 }
             )
-        
         # Convert response to GraphQL format
-        if not cache_result or cache_result.get("status") != 200:
+        if not cache_result or result['status'] != 'completed':
             return TopicDocResponse(
                 data=[],
                 message=cache_result.get("message", "Failed to retrieve documents") if cache_result else "No data found",
@@ -120,7 +120,8 @@ class Query:
             )
         
         # Convert data to TopicDocument objects
-        doc_data = cache_result.get("data", [])
+        doc_data = cache_result
+        print(f"Cache result for doc_{project_id}: {doc_data}")
         if isinstance(doc_data, list):
             documents = [
                 TopicDocument(
@@ -137,6 +138,6 @@ class Query:
         
         return TopicDocResponse(
             data=documents,
-            message=cache_result.get("message", "Success"),
-            status=cache_result.get("status", 200)
+            message="success",
+            status=200
         )

@@ -27,7 +27,7 @@ class Supervisor:
         ####
         
         self.create_worker("DatabaseInteractionWorker", count=1, config=DatabaseInteractionWorkerConfig)
-        self.create_worker("RestApiWorker", count=1, config=RestApiWorkerConfig)
+        self.create_worker("RestApiWorker", count=1, config=RestApiWorkerConfig)    
         self.create_worker("GraphQLWorker", count=1, config=GraphQLWorkerConfig)
         self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
         self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)

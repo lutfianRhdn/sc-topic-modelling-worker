@@ -109,7 +109,7 @@ class DatabaseInteractionWorker(Worker):
     topicProject =  self._db['topics'].find(
         {"projectId": id},
     )
-    return {"data": list(topicProject), "destination": ["RestApiWorker/onProcessed"]}
+    return {"data": list(topicProject), "destination": ["GraphQLWorker/onProcessed"]}
   def getDocumentsByProjectId(self, id, data):
     documentsProject = self._db['documents'].find(
         {"projectId": id},
@@ -117,11 +117,11 @@ class DatabaseInteractionWorker(Worker):
     documentsList = list(documentsProject)
     if not documentsList:
       log(f"No documents found for project {id}.", "info")
-      return {"data": [], "destination": ["RestApiWorker/onProcessed"]}
+      return {"data": [], "destination": ["GraphQLWorker/onProcessed"]}
     
     return {
         "data": documentsList,
-        "destination": ["RestApiWorker/onProcessed"]
+        "destination": ["GraphQLWorker/onProcessed"]
     }
   def getTweetByKeyword(self,id,data):
     keyword = data['keyword']
@@ -221,14 +221,14 @@ class DatabaseInteractionWorker(Worker):
         log(f"Deleted {result.deleted_count} topics for project {id}.", "success")
     else:
         log(f"No topics found for project {id}.", "info")
-    return {"data": {"deleted_count": result.deleted_count}, "destination": ["RestApiWorker/onProcessed"]}
+    return {"data": {"deleted_count": result.deleted_count}, "destination": ["GraphQlWorker/onProcessed"]}
   def deleteDocumentsByProjectId(self, id, data):
     result = self._db['documents'].delete_many({"projectId": id})
     if result.deleted_count > 0:
         log(f"Deleted {result.deleted_count} documents for project {id}.", "success")
     else:
         log(f"No documents found for project {id}.", "info")
-    return {"data": {"deleted_count": result.deleted_count}, "destination": ["RestApiWorker/onProcessed"]}
+    return {"data": {"deleted_count": result.deleted_count}, "destination": ["GraphQlWorker/onProcessed"]}
   
     
   # def getTextTweetsByKeyword(self, id, data):
