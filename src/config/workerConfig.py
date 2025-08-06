@@ -3,6 +3,10 @@ from .env import database,port,azure,rabbitmq,redis
 RestApiWorkerConfig = {
     "port": port
 }
+
+GraphQLWorkerConfig = {
+    "port": port + 1  # Use different port for GraphQL worker
+}
 DatabaseInteractionWorkerConfig = {
   "connection_string": database["connection_string"],
   "database": database["database"],
@@ -54,6 +58,7 @@ CacheWorkerConfig={
 allConfigs ={
     "DatabaseInteractionWorker": DatabaseInteractionWorkerConfig,
     "RestApiWorker": RestApiWorkerConfig,
+    "GraphQLWorker": GraphQLWorkerConfig,
     "PreprocessingWorker": PreprocessingWorkerConfig,
     "ETMWorker": ETMWorkerConfig,
     "LLMWorker": LLMWorkerConfig,
