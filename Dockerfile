@@ -29,6 +29,7 @@ COPY . .
 
 # Expose the port that the Flask application will run on
 EXPOSE 8000
+EXPOSE 8001
 
 # Command to run the application
 CMD ["python", "src/supervisor.py"]
