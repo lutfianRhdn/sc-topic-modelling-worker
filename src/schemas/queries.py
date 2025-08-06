@@ -9,7 +9,7 @@ class Query:
     """GraphQL Query root type"""
     
     @strawberry.field
-    def topic_by_project(self, project_id: str, info: strawberry.Info) -> TopicResponse:
+    def get_topic_by_project(self, projectId: str, info: strawberry.Info) -> TopicResponse:
         """Get topics by project ID"""
         # Get the GraphQLWorker instance from context
         worker = info.context.get("worker")
@@ -22,28 +22,28 @@ class Query:
         
         # Use the same logic as RestApiWorker
         result = worker.send_to_other_worker(
-            destination=[f"CacheWorker/getByKey/topic_{project_id}"],
-            data={"project_id": f"topic_{project_id}"}
+            destination=[f"CacheWorker/getByKey/topic_{projectId}"],
+            data={"projectId": f"topic_{projectId}"}
         )
         
         cache_result = result.get("result")
         if cache_result is None or len(cache_result) == 0:
             # Get from database if not in cache
             result = worker.send_to_other_worker(
-                destination=[f"DatabaseInteractionWorker/getTopicByProjectId/{project_id}"],
+                destination=[f"DatabaseInteractionWorker/getTopicByProjectId/{projectId}"],
                 data={}
             )
             cache_result = result['result']
             
             # Cache the result
             worker.send_message_async(
-                destination=[f'CacheWorker/set/topic_{project_id}'],
+                destination=[f'CacheWorker/set/topic_{projectId}'],
                 data={
-                    "key": f"topic_{project_id}",
+                    "key": f"topic_{projectId}",
                     "value": cache_result,
                 }
             )
-        print(f"Cache result for topic_{project_id}: {cache_result}")
+        print(f"Cache result for topic_{projectId}: {cache_result}")
         
         # Convert response to GraphQL format
         if not cache_result or cache_result.get("status") != 'completed':
@@ -77,7 +77,7 @@ class Query:
         )
     
     @strawberry.field
-    def documents_by_project(self, project_id: str, info: strawberry.Info) -> TopicDocResponse:
+    def get_document_topic_by_project(self, projectId: str, info: strawberry.Info) -> TopicDocResponse:
         """Get documents by project ID"""
         # Get the GraphQLWorker instance from context
         worker = info.context.get("worker")
@@ -90,24 +90,24 @@ class Query:
         
         # Use the same logic as RestApiWorker
         result = worker.send_to_other_worker(
-            destination=[f"CacheWorker/getByKey/doc_{project_id}"],
-            data={"project_id": f"doc_{project_id}"}
+            destination=[f"CacheWorker/getByKey/doc_{projectId}"],
+            data={"projectId": f"doc_{projectId}"}
         )
         
         cache_result = result['result']
         if cache_result is None or len(cache_result) == 0:
             # Get from database if not in cache
             result = worker.send_to_other_worker(
-                destination=[f"DatabaseInteractionWorker/getDocumentsByProjectId/{project_id}"],
+                destination=[f"DatabaseInteractionWorker/getDocumentsByProjectId/{projectId}"],
                 data={}
             )
             cache_result = result.get("result")
             
             # Cache the result
             worker.send_message_async(
-                destination=[f'CacheWorker/set/doc_{project_id}'],
+                destination=[f'CacheWorker/set/doc_{projectId}'],
                 data={
-                    "key": f"doc_{project_id}",
+                    "key": f"doc_{projectId}",
                     "value": cache_result,
                 }
             )
@@ -121,7 +121,7 @@ class Query:
         
         # Convert data to TopicDocument objects
         doc_data = cache_result
-        print(f"Cache result for doc_{project_id}: {doc_data}")
+        print(f"Cache result for doc_{projectId}: {doc_data}")
         if isinstance(doc_data, list):
             documents = [
                 TopicDocument(
