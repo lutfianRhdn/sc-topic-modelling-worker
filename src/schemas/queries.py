@@ -46,7 +46,7 @@ class Query:
         print(f"Cache result for topic_{projectId}: {cache_result}")
         
         # Convert response to GraphQL format
-        if not cache_result or cache_result.get("status") != 'completed':
+        if not cache_result or result.get("status") != 'completed':
             return TopicResponse(
                 data=[],
                 message=cache_result.get("message", "Failed to retrieve topics") if cache_result else "No data found",
@@ -54,7 +54,7 @@ class Query:
             )
         
         # Convert data to TopicProject objects
-        topic_data = cache_result['result']
+        topic_data = cache_result
         if isinstance(topic_data, list):
             projects = [
                 TopicProject(
@@ -72,8 +72,8 @@ class Query:
         
         return TopicResponse(
             data=projects,
-            message=cache_result.get("message", "Success"),
-            status=cache_result.get("status", 200)
+            message=result.get("status"),
+            status=200 if result.get("status", 200) == 'completed' else 500 
         )
     
     @strawberry.field

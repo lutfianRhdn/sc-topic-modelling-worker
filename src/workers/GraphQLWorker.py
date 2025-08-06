@@ -15,21 +15,43 @@ from schemas.queries import Query
 
 # Simple GraphQL-like implementation without external dependencies
 app = Flask(__name__)
+class CustomGraphQLView(GraphQLView):
+    # override the instance method called by Strawberry to build context
+    def get_context(self, request,response=None):
+        # self here is the view instance; we read worker from the view class
+        # (set by as_view_with_worker)
+        return {"request": request, "worker": getattr(self.__class__, "worker", None),'response':response}
 
+    @classmethod
+    def as_view_with_worker(cls, name, worker, **kwargs):
+        """
+        Attach the worker to the view class and return the view function.
+        Do NOT pass get_context or worker into as_view(...) kwargs.
+        """
+        # Attach worker to the view class (so instances can access it)
+        cls.worker = worker
+        # Create and return the Flask view function
+        return super().as_view(name, **kwargs)
 class GraphQLWorker:
     requests: dict = {}
     def __init__(self):
         self.app = Flask(__name__)
+        self.schema = strawberry.federation.Schema(
+            query=Query,
+            enable_federation_2=True,
+        )
         self.setup_routes()
     
     def setup_routes(self):
         # Add Strawberry GraphQL endpoint
         self.app.add_url_rule(
             '/graphql',
-            view_func=GraphQLView.as_view('graphql', schema=strawberry.federation.Schema(
-                query=Query,
-                enable_federation_2=True,
-            ), graphiql=True),
+            view_func=CustomGraphQLView.as_view_with_worker(
+                'graphql',
+                worker=self,
+                schema=self.schema,
+                graphiql=True
+            ),
             methods=['GET', 'POST']
         )
         
