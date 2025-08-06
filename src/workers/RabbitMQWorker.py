@@ -68,7 +68,7 @@ class RabbitMQWorker(Worker):
           log(f"Failed to connect to RabbitMQ: {e}", "error")
           return
         #### until this part
-        # start background threads *before* blocking server
+        # start background threads *before* blocking s6742f50d7ae271700e0f6c5cerver
         # t3 = threading.Thread(target=self.listen_task, daemon=True).start()
 
         asyncio.run(self.listen_task())

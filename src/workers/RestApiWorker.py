@@ -49,6 +49,7 @@ class RestApiWorker(FlaskView):
             except EOFError:
                 break
             except Exception as e:
+                
                 log(f"Listener error: {e}",'error' )
                 break
 

@@ -8,7 +8,7 @@ import multiprocessing
 from datetime import datetime
 from multiprocessing.connection import Connection
 import traceback
-from config.workerConfig import DatabaseInteractionWorkerConfig, ETMWorkerConfig, CacheWorkerConfig, LLMWorkerConfig, PreprocessingWorkerConfig, RabbitMQWorkerConfig, RestApiWorkerConfig,allConfigs
+from config.workerConfig import DatabaseInteractionWorkerConfig, ETMWorkerConfig, CacheWorkerConfig, LLMWorkerConfig, PreprocessingWorkerConfig, RabbitMQWorkerConfig, RestApiWorkerConfig, GraphQLWorkerConfig, allConfigs
 from utils.log import log
 from utils.handleMessage import sendMessage,convertMessage
 import psutil
@@ -27,7 +27,8 @@ class Supervisor:
         ####
         
         self.create_worker("DatabaseInteractionWorker", count=1, config=DatabaseInteractionWorkerConfig)
-        self.create_worker("RestApiWorker", count=1, config=RestApiWorkerConfig)
+        self.create_worker("RestApiWorker", count=1, config=RestApiWorkerConfig)    
+        self.create_worker("GraphQLWorker", count=1, config=GraphQLWorkerConfig)
         self.create_worker("PreprocessingWorker", count=1, config=PreprocessingWorkerConfig)
         self.create_worker("ETMWorker", count=1, config=ETMWorkerConfig)
         self.create_worker('LLMWorker',count=1, config=LLMWorkerConfig)
