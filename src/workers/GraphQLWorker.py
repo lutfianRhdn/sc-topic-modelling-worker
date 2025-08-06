@@ -74,7 +74,7 @@ class GraphQLWorker:
         threading.Thread(target=run_listen_task, daemon=True).start()
 
         # Start Flask server
-        self.app.run(debug=True, port=8888, use_reloader=False, host="0.0.0.0")
+        self.app.run(debug=True, port=self._port, use_reloader=False, host="0.0.0.0")
     
     async def listen_task(self):
         while True:
