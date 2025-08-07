@@ -40,6 +40,14 @@ class Supervisor:
         # until this part
         ####
         
+        def signal_handler(signal, frame):
+            log("Shutting down Supervisor", "info")
+            for pid in list(self._workers.keys()):
+                self._kill_worker(pid)
+            sys.exit(0)
+        import signal
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
         # Start periodic health check thread
         self._health_thread = threading.Thread(target=self._health_loop, daemon=True)
         self._health_thread.start()

@@ -505,7 +505,7 @@ class PreprocessingWorker(Worker):
       keyword = data['keyword']
       start_date = data['start_date']
       end_date = data['end_date']
-      project_id = data['projectId']
+      project_id = data['project_id']
       m_id = message['messageId']
       log(f"Preparing preprocessing for keyword: {keyword}, project_id: {project_id}, messageId: {m_id}", "info")
       self.sendToOtherWorker(
@@ -539,18 +539,22 @@ class PreprocessingWorker(Worker):
                     log(f"Event loop is already running for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
                     nest_asyncio.apply()
                     
-                    data = evt_loop.run_until_complete(
-                        self.augment_all_batches(
-                        all_tweets=text_tweet,
-                        keyword=keyword,
-                    ))
+                    # data = evt_loop.run_until_complete(
+                    #     self.augment_all_batches(
+                    #     all_tweets=text_tweet,
+                    #     keyword=keyword,
+                    # ))
+                    data = text_tweet
                 else:
                     log(f"Creating new event loop for keyword: {keyword}, project_id: {id}, messageId: {message['messageId']}", "info")
-                    data = asyncio.run(
-                        self.augment_all_batches(
-                        all_tweets=text_tweet,
-                        keyword=keyword,
-                    ))
+                    # data = asyncio.run(
+                    #     self.augment_all_batches(
+                    #     all_tweets=text_tweet,
+                    #     keyword=keyword,
+                    # ))
+                    data = text_tweet
+                    
+                    # print(data)
             except Exception as e:
                 data = asyncio.run(
                         self.augment_all_batches(

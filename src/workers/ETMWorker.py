@@ -163,23 +163,35 @@ class ETMWorker(Worker):
         # print(probs)
 
         num_docs = probs.shape[1]
+        print("Topic-document matrix shape:", probs.shape)
+        print("Number of documents:", num_docs)
+        try:
+            
+            for i in range(num_docs):
+                column = probs[:, i]
+                topic_index = np.argmax(column)
+                probability = column[topic_index]
+                print("Doc {}: topic={}, prob={}".format(i+1, topic_index+1, probability))
 
-        for i in range(num_docs):
-            column = probs[:, i]
-            topic_index = np.argmax(column)
-            probability = column[topic_index]
-            print("Doc {}: topic={}, prob={}".format(i+1, topic_index+1, probability))
+                full_texts[i] ={
+                    **data_tweet[i],
+                    "full_text": full_texts[i],
+                    "topic": str(topic_index),
+                    "probability": str(probability)
+                }
+                documents_probability.append(full_texts[i])
 
-            full_texts[i] ={
-                **data_tweet[i],
-                "full_text": full_texts[i],
-                "topic": str(topic_index),
-                "probability": str(probability)
-            }
-            documents_probability.append(full_texts[i])
-
-        return documents_probability
-
+            return documents_probability
+        except Exception as e:
+            traceback.print_exc()
+            log(f"Error in document processing: {e}", "error")
+            # terminate the worker if an error occurs
+            self._isBusy = False
+            self.conn.close()
+            
+            raise e
+        
+            
 
     def evaluate_coherence(self, dataset, model_output):
         coh = Coherence(texts=dataset.get_corpus(),topk=10,
@@ -199,6 +211,7 @@ class ETMWorker(Worker):
         end_date = data['end_date']
         
         
+        print(f"Number of tweets: {len(tweets)}",)
         documents_prob = self.document(data_tweet=tweets, etm_model=generated_topic)
         log(f"Generated {len(documents_prob)}/{len(tweets)}/{len(data['tweets'])} documents with topics", "info")
         self.sendToOtherWorker(
@@ -231,6 +244,11 @@ class ETMWorker(Worker):
       except Exception as e:
         traceback.print_exc()
         print(e)
+        # terminate worker end
+        log(f"Error in run_etm: {e}", "error")
+        self._isBusy = False
+        self.conn.close()
+        raise e
 
 def main(conn: Connection, config: dict):
     worker = ETMWorker()
