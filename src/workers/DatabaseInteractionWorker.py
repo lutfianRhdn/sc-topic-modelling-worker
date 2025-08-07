@@ -93,7 +93,13 @@ class DatabaseInteractionWorker(Worker):
     if len(list(alreadyExists)) == 0:
       log(f"Project with id {id} already exists in topics collection.", "error")
       self._db['topics'].insert_many(contexts)
-  
+    sendMessage(
+        conn=self.conn,
+        status="completed",
+        destination=["RabbitMQWorker/produceMessageProjectStatus/"],
+        messageId=data.get("messageId", ""),
+        data={"project_id": id, "topic_modelling":True}
+    )
     return {
       "data": 
         {

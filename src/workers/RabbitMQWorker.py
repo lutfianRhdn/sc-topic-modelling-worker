@@ -169,7 +169,36 @@ class RabbitMQWorker(Worker):
             
         except Exception as e:
             log(f"Error producing message: {e}", 'error')
-
+    def produceMessageProjectStatus(self, data):
+        try:
+            print(f"[*] Producing project status message to queue: projectStatusQueue")
+            print(f"[*] Data: {json.dumps(data['data'])}")
+            
+            # Create a separate connection for producing (don't use self.connection)
+            parameters = pika.URLParameters(self.connection_string)
+            connection = pika.BlockingConnection(parameters)
+            channel = connection.channel()
+            
+            channel.exchange_declare(exchange='projectStatusQueue', durable=True, exchange_type='fanout')
+            channel.basic_publish(
+                exchange='',
+                routing_key='projectStatusQueue',
+                body=json.dumps(data['data']),
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # make message persistent
+                    headers={
+                        'project_id': data['data'].get('project_id', ''),
+                    }
+                )
+            )
+            print(f"[*] Project status message sent to queue: projectStatusQueue")
+            
+            # Close the connection properly
+            channel.close()
+            connection.close()
+            
+        except Exception as e:
+            log(f"Error producing project status message: {e}", 'error')
 def main(conn: Connection, config: dict):
     worker = RabbitMQWorker()
     worker.run(conn, config)
