@@ -77,7 +77,7 @@ class Query:
         )
     
     @strawberry.field
-    def get_document_topic_by_project(self, projectId: str, info: strawberry.Info) -> TopicDocResponse:
+    def get_document_topic_by_project(self, projectId: str, info: strawberry.Info, topic: Optional[str] = None) -> TopicDocResponse:
         """Get documents by project ID"""
         # Get the GraphQLWorker instance from context
         worker = info.context.get("worker")
@@ -88,10 +88,13 @@ class Query:
                 status=500
             )
         
+        # Create cache key with topic filter if provided
+        cache_key = f"doc_{projectId}" if topic is None else f"doc_{projectId}_topic_{topic}"
+        
         # Use the same logic as RestApiWorker
         result = worker.send_to_other_worker(
-            destination=[f"CacheWorker/getByKey/doc_{projectId}"],
-            data={"projectId": f"doc_{projectId}"}
+            destination=[f"CacheWorker/getByKey/{cache_key}"],
+            data={"projectId": cache_key}
         )
         
         cache_result = result['result']
@@ -105,9 +108,9 @@ class Query:
             
             # Cache the result
             worker.send_message_async(
-                destination=[f'CacheWorker/set/doc_{projectId}'],
+                destination=[f'CacheWorker/set/{cache_key}'],
                 data={
-                    "key": f"doc_{projectId}",
+                    "key": cache_key,
                     "value": cache_result,
                 }
             )
@@ -121,7 +124,7 @@ class Query:
         
         # Convert data to TopicDocument objects
         doc_data = cache_result
-        print(f"Cache result for doc_{projectId}: {doc_data}")
+        print(f"Cache result for {cache_key}: {doc_data}")
         if isinstance(doc_data, list):
             documents = [
                 TopicDocument(
@@ -133,6 +136,10 @@ class Query:
                 for item in doc_data
                 if isinstance(item, dict)
             ]
+            
+            # Filter by topic if provided
+            if topic is not None:
+                documents = [doc for doc in documents if doc.topic == topic]
         else:
             documents = []
         
