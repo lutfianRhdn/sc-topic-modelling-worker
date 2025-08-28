@@ -58,7 +58,7 @@ class RabbitMQWorker(Worker):
             
             
           t1 = threading.Thread(target=self.consumeMessage, args=(self.consumeQueue, ["PreprocessingWorker/prepare_preprocessing/"])).start()
-          t2 = threading.Thread(target=self.consumeMessage, args=(self.consumeCompensationQueue, ["DatabaseInteractionWorker/removeContext/", "DatabaseInteractionWorker/removeDocument"])).start()
+          t2 = threading.Thread(target=self.consumeMessage, args=(self.consumeCompensationQueue, ["DatabaseInteractionWorker/deleteTopicByProjectId/", "DatabaseInteractionWorker/deleteDocumentsByProjectId"])).start()
         
         except Exception as e:
           traceback.print_exc()
