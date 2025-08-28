@@ -13,10 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gcc \
   g++ \
   make \
-  libisl-dev \
-  libatlas-base-dev \
+  libopenblas-dev \
+  liblapack-dev \
+  gfortran \
   && rm -rf /var/lib/apt/lists/*
-
+  
 # Copy the requirements file into the container
 COPY requirements.txt .
 # Upgrade pip, setuptools, and wheel to the latest versions
