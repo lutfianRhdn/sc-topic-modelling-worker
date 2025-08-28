@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 # Set environment variables to prevent Python from writing .pyc files
 ENV PYTHONUNBUFFERED=1
@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gcc \
   g++ \
   make \
-  libisl-dev \
-  libatlas-base-dev \
+  libopenblas-dev \
+  liblapack-dev \
+  gfortran \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
